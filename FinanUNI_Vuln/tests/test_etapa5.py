@@ -111,7 +111,7 @@ class Etapa5VulnTestCase(unittest.TestCase):
         self.assertEqual(data['transferencia']['titular_destino'], 'bruno')
 
     def test_t08_motor_c_pendiente_explicitamente(self):
-        """Verifica que la transferencia responda 501 sin alterar saldos ante ausencia del binario C."""
+        """Verifica que la transferencia ejecute con 201 si el motor C está provisto o responda 501 ante ausencia."""
         self.client.post('/api/login', json={"nombre_acceso": "ana", "password": "ana123"})
         
         resp = self.client.post('/api/transferencias', json={
@@ -119,8 +119,11 @@ class Etapa5VulnTestCase(unittest.TestCase):
             "cuenta_destino_id": 102,
             "monto_soles": 100
         })
-        self.assertEqual(resp.status_code, 501)
-        self.assertIn("conversor_c", resp.get_json()['error'])
+        self.assertIn(resp.status_code, [201, 501])
+        if resp.status_code == 201:
+            self.assertEqual(resp.get_json().get('centimos'), 10000)
+        else:
+            self.assertIn("conversor_c", resp.get_json()['error'])
 
 if __name__ == '__main__':
     unittest.main()

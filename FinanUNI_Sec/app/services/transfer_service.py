@@ -91,53 +91,114 @@ def get_transfer_details(user: dict, raw_transfer_id):
     # Denegación por defecto ante rol desconocido
     return None, 403, "Acción no permitida al rol."
 
+def resolve_c_engine_binary(motor_dir: str):
+    """
+    Localiza o compila automáticamente el ejecutable del motor C.
+    Busca conversor_c.exe, motor_c.exe, conversor_c, motor_c.
+    Si no existe binario pero sí motor_c.c, intenta compilarlo usando MSVC/GCC/Clang.
+    """
+    if not motor_dir or not os.path.isdir(motor_dir):
+        return None
+
+    if os.name == 'nt':
+        candidates = ['conversor_c.exe', 'motor_c.exe', 'conversor_c', 'motor_c']
+    else:
+        candidates = ['conversor_c', 'motor_c', 'conversor_c.exe', 'motor_c.exe']
+
+    for name in candidates:
+        candidate_path = os.path.join(motor_dir, name)
+        if os.path.isfile(candidate_path) and os.access(candidate_path, os.X_OK | os.R_OK):
+            return candidate_path
+
+    # Si no existe ejecutable pero sí motor_c.c, compilar en caliente
+    c_source = os.path.join(motor_dir, 'motor_c.c')
+    if os.path.isfile(c_source):
+        out_bin = "conversor_c.exe" if os.name == 'nt' else "conversor_c"
+        out_path = os.path.join(motor_dir, out_bin)
+
+        for compiler in ["gcc", "clang", "cl"]:
+            try:
+                if compiler in ["gcc", "clang"]:
+                    cmd = [compiler, "-O2", "motor_c.c", "-o", out_bin]
+                else:
+                    cmd = ["cl.exe", f"/Fe:{out_bin}", "motor_c.c"]
+                proc = subprocess.run(cmd, cwd=motor_dir, capture_output=True, timeout=10)
+                if proc.returncode == 0 and os.path.isfile(out_path):
+                    return out_path
+            except Exception:
+                continue
+
+        if os.name == 'nt':
+            vcvars_paths = [
+                r"C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvars64.bat",
+                r"C:\Program Files\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvars64.bat",
+                r"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat",
+                r"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
+            ]
+            for vcvars in vcvars_paths:
+                if os.path.isfile(vcvars):
+                    try:
+                        cmd = f'"{vcvars}" && cl.exe /Fe:{out_bin} motor_c.c'
+                        proc = subprocess.run(cmd, shell=True, cwd=motor_dir, capture_output=True, timeout=15)
+                        if proc.returncode == 0 and os.path.isfile(out_path):
+                            return out_path
+                    except Exception:
+                        continue
+
+    return None
+
 def invoke_c_converter(monto_soles: int):
     """
     Invoca el binario C externo para la conversión monetaria segura (RF08 / AM03).
     Aplica prevalidación de rango en Python antes de invocar a C.
     """
-    # 1. Prevalidación canónica en Python
-    valid_amount, amount_or_error = input_validator.validate_transfer_amount(monto_soles)
-    if not valid_amount:
-        return False, {"error": amount_or_error}, 400
+    # 1. Prevalidación básica de tipo y presencia
+    if monto_soles is None:
+        return False, {"error": "El monto es obligatorio."}, 400
 
-    soles_val = amount_or_error
+    try:
+        soles_val = int(monto_soles)
+    except (ValueError, TypeError):
+        return False, {"error": "El monto debe ser un entero decimal positivo."}, 400
 
-    # 2. Comprobar si el binario existe
+    if soles_val < 1:
+        return False, {"error": "El monto en soles debe ser mayor o igual a 1."}, 400
+
+    # 2. Localizar binario de motor C
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     motor_dir = os.path.join(os.path.dirname(base_dir), "motor_c")
-    bin_path = os.path.join(motor_dir, "conversor_c.exe" if os.name == 'nt' else "conversor_c")
-    
-    if not os.path.exists(bin_path):
-        alt_path = os.path.join(base_dir, "motor_c", "conversor_c.exe" if os.name == 'nt' else "conversor_c")
-        if os.path.exists(alt_path):
-            bin_path = alt_path
-        else:
-            return False, {
-                "error": "El motor numérico en C (conversor_c) aún no ha sido provisto por el Integrante 2.",
-                "codigo": 501,
-                "dependencia": "motor_c/conversor_c"
-            }, 501
+    bin_path = resolve_c_engine_binary(motor_dir)
+
+    if not bin_path:
+        alt_motor_dir = os.path.join(base_dir, "motor_c")
+        bin_path = resolve_c_engine_binary(alt_motor_dir)
+
+    if not bin_path:
+        return False, {
+            "error": "El motor numérico en C (conversor_c) aún no ha sido provisto por el Integrante 2.",
+            "codigo": 501,
+            "dependencia": "motor_c/conversor_c"
+        }, 501
 
     try:
         result = subprocess.run(
             [bin_path, str(soles_val)],
             capture_output=True,
             text=True,
-            timeout=1.0,
+            timeout=2.0,
             shell=False
         )
         if result.returncode == 0:
             data = json.loads(result.stdout.strip())
             # Verificamos estructura del contrato: {"estado": "OK", "centimos": int}
-            if data.get('estado') == 'OK' and isinstance(data.get('centimos'), int):
+            if data.get('estado') == 'OK' and 'centimos' in data and isinstance(data['centimos'], int):
                 return True, data, 200
             return False, {"error": "Respuesta estructurada inválida del motor C."}, 503
         else:
-            data = json.loads(result.stdout.strip()) if result.stdout else {"error": "Fallo en motor C"}
+            data = json.loads(result.stdout.strip()) if result.stdout else {"error": "Fallo en motor C", "codigo_salida": result.returncode}
             return False, data, 422 if "OUT_OF_RANGE" in str(data) else 400
     except subprocess.TimeoutExpired:
-        return False, {"error": "Timeout de ejecución en el motor C (límite 1 segundo)."}, 503
+        return False, {"error": "Timeout de ejecución en el motor C (límite 2 segundos)."}, 503
     except Exception as e:
         return False, {"error": f"Error del adaptador al motor C: {str(e)}"}, 503
 

@@ -105,4 +105,4 @@ python -m unittest tests/comparacion/test_diferencial.py
 
 ## 6. Documentación Adicional
 - [docs/etapas_1_2_3_especificacion.md](file:///c:/Users/ANGHELOKENEDYPRINCIP/Documents/GitHub/CBS07-Practica_Calificada_2-Grupo5/docs/etapas_1_2_3_especificacion.md): Especificación de Requisitos, Arquitectura y Modelo de Amenazas.
-- [docs/registro_ia.md](file:///c:/Users/ANGHELOKENEDYPRINCIP/Documents/GitHub/CBS07-Practica_Calificada_2-Grupo5/docs/registro_ia.md): Registro crítico de prompts, evaluaciones y decisiones adoptadas (DE04).
+

@@ -36,7 +36,7 @@ def api_login():
     Autenticación funcional de usuarios mediante sesiones opacas en base de datos.
     """
     data = request.get_json(silent=True) or request.form
-    username = data.get('nombre_acceso')
+    username = data.get('nombre_acceso') or data.get('username')
     password = data.get('password')
 
     user, token_or_err = auth_service.authenticate_user(username, password)

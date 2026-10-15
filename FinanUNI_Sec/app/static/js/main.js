@@ -188,6 +188,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         <strong>🛡️ CONTROL DE AUTORIZACIÓN (RBAC / Propiedad):</strong><br>
                         ${data.error}
                     `, 'warning');
+                } else if (response.status === 400) {
+                    showStatusFeedback(`
+                        <strong>🛡️ VALIDACIÓN DE ENTRADA Y PREVENCIÓN DE DESBORDE (RF05 / T07):</strong><br>
+                        ${data.error}<br>
+                        <em>El backend interceptó y rechazó el monto antes de cualquier llamada al motor C.</em>
+                    `, 'warning');
                 } else if (response.ok) {
                     showStatusFeedback(`Transferencia confirmada de forma atómica: ${JSON.stringify(data)}`, 'info');
                 } else {

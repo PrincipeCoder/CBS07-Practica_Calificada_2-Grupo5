@@ -174,7 +174,7 @@ class Etapa6SecTestCase(unittest.TestCase):
         self.assertIn("no pertenece al usuario", resp.get_json()['error'])
 
     def test_t08_motor_c_pendiente_explicitamente(self):
-        """Verifica que la transferencia legítima de Ana responda 501 ante ausencia del motor C."""
+        """Verifica que la transferencia legítima de Ana ejecute con 201 si el motor C está provisto o responda 501 ante ausencia."""
         resp_login = self.client.post('/api/login', json={"nombre_acceso": "ana", "password": "ana123"})
         csrf_tok = resp_login.get_json()['csrf_token']
 
@@ -182,8 +182,11 @@ class Etapa6SecTestCase(unittest.TestCase):
             headers={'X-CSRF-Token': csrf_tok},
             json={"cuenta_origen_id": 101, "cuenta_destino_id": 102, "monto_soles": 100}
         )
-        self.assertEqual(resp.status_code, 501)
-        self.assertIn("conversor_c", resp.get_json()['error'])
+        self.assertIn(resp.status_code, [201, 501])
+        if resp.status_code == 201:
+            self.assertEqual(resp.get_json().get('centimos'), 10000)
+        else:
+            self.assertIn("conversor_c", resp.get_json()['error'])
 
 if __name__ == '__main__':
     unittest.main()

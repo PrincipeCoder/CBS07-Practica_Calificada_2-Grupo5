@@ -81,62 +81,140 @@ def get_transfer_details(user: dict, transfer_id: int):
     # PUNTO VULNERABLE: Se retorna el registro sin validar propiedad ni rol
     return transfer, 200, "OK"
 
+def resolve_c_engine_binary(motor_dir: str):
+    """
+    Localiza o compila automáticamente el ejecutable del motor C.
+    Busca conversor_c.exe, motor_c.exe, conversor_c, motor_c.
+    Si no existe binario pero sí motor_c.c, intenta compilarlo usando MSVC/GCC/Clang.
+    """
+    if not motor_dir or not os.path.isdir(motor_dir):
+        return None
+
+    if os.name == 'nt':
+        candidates = ['conversor_c.exe', 'motor_c.exe', 'conversor_c', 'motor_c']
+    else:
+        candidates = ['conversor_c', 'motor_c', 'conversor_c.exe', 'motor_c.exe']
+
+    for name in candidates:
+        candidate_path = os.path.join(motor_dir, name)
+        if os.path.isfile(candidate_path) and os.access(candidate_path, os.X_OK | os.R_OK):
+            return candidate_path
+
+    # Si no existe ejecutable pero sí motor_c.c, compilar en caliente
+    c_source = os.path.join(motor_dir, 'motor_c.c')
+    if os.path.isfile(c_source):
+        out_bin = "conversor_c.exe" if os.name == 'nt' else "conversor_c"
+        out_path = os.path.join(motor_dir, out_bin)
+
+        for compiler in ["gcc", "clang", "cl"]:
+            try:
+                if compiler in ["gcc", "clang"]:
+                    cmd = [compiler, "-O2", "motor_c.c", "-o", out_bin]
+                else:
+                    cmd = ["cl.exe", f"/Fe:{out_bin}", "motor_c.c"]
+                proc = subprocess.run(cmd, cwd=motor_dir, capture_output=True, timeout=10)
+                if proc.returncode == 0 and os.path.isfile(out_path):
+                    return out_path
+            except Exception:
+                continue
+
+        if os.name == 'nt':
+            vcvars_paths = [
+                r"C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvars64.bat",
+                r"C:\Program Files\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvars64.bat",
+                r"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat",
+                r"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
+            ]
+            for vcvars in vcvars_paths:
+                if os.path.isfile(vcvars):
+                    try:
+                        cmd = f'"{vcvars}" && cl.exe /Fe:{out_bin} motor_c.c'
+                        proc = subprocess.run(cmd, shell=True, cwd=motor_dir, capture_output=True, timeout=15)
+                        if proc.returncode == 0 and os.path.isfile(out_path):
+                            return out_path
+                    except Exception:
+                        continue
+
+    return None
+
 def invoke_c_converter(monto_soles: int):
     """
     Invoca el binario nativo en C según el contrato acordado en conversor.h (RF08).
-    
-    Comprobamos si el ejecutable 'conversor_c' existe:
-    - Si el ejecutable aún no ha sido provisto/compilado por el Integrante 2,
-      retornamos estado explícito 501 indicando la dependencia pendiente.
-    - No inventamos ni simulamos un cálculo con Python silencioso.
+    En FinanUNI_Vuln ejecuta el motor C vulnerable que sobrepasa INT32_MAX sin control.
     """
-    # Buscamos conversor_c o conversor_c.exe en la carpeta motor_c
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     motor_dir = os.path.join(os.path.dirname(base_dir), "motor_c")
-    bin_path = os.path.join(motor_dir, "conversor_c.exe" if os.name == 'nt' else "conversor_c")
-    
-    if not os.path.exists(bin_path):
-        alt_path = os.path.join(base_dir, "motor_c", "conversor_c.exe" if os.name == 'nt' else "conversor_c")
-        if os.path.exists(alt_path):
-            bin_path = alt_path
-        else:
-            return False, {
-                "error": "El motor numérico en C (conversor_c) aún no ha sido compilado por el Integrante 2.",
-                "codigo": 501,
-                "dependencia": "motor_c/conversor_c"
-            }, 501
+    bin_path = resolve_c_engine_binary(motor_dir)
+
+    if not bin_path:
+        alt_motor_dir = os.path.join(base_dir, "motor_c")
+        bin_path = resolve_c_engine_binary(alt_motor_dir)
+
+    if not bin_path:
+        return False, {
+            "error": "El motor numérico en C (conversor_c) aún no ha sido compilado por el Integrante 2.",
+            "codigo": 501,
+            "dependencia": "motor_c/conversor_c"
+        }, 501
 
     try:
         result = subprocess.run(
             [bin_path, str(monto_soles)],
             capture_output=True,
             text=True,
-            timeout=1.0,
+            timeout=2.0,
             shell=False
         )
         if result.returncode == 0:
             data = json.loads(result.stdout.strip())
             return True, data, 200
         else:
-            data = json.loads(result.stdout.strip()) if result.stdout else {"motivo": "ERROR_EXIT"}
+            data = json.loads(result.stdout.strip()) if result.stdout else {"motivo": "ERROR_EXIT", "codigo_salida": result.returncode}
             return False, data, 400
     except subprocess.TimeoutExpired:
-        return False, {"error": "Timeout de ejecución en el motor C (límite 1 segundo)."}, 503
+        return False, {"error": "Timeout de ejecución en el motor C (límite 2 segundos)."}, 503
     except Exception as e:
         return False, {"error": f"Error ejecutando conversor_c: {str(e)}"}, 503
 
-def process_transfer(user: dict, cuenta_origen_id: int, cuenta_destino_id: int, monto_soles: int):
+def process_transfer(user: dict, cuenta_origen_id, cuenta_destino_id, monto_soles):
     """
-    Coordina la transferencia monetaria. Depende de la disponibilidad del motor C.
+    Coordina la transferencia monetaria en FinanUNI_Vuln.
+    - Ausencia deliberada de validación estricta de propiedad y rango numérico (AM03).
+    - Aplica la conversión del motor C vulnerable y persiste el resultado en SQLite.
     """
     if not user:
         return False, {"error": "Se requiere sesión activa.", "codigo": 401}, 401
     
+    try:
+        origen_id = int(cuenta_origen_id)
+        destino_id = int(cuenta_destino_id)
+        monto_s = int(monto_soles)
+    except (ValueError, TypeError):
+        return False, {"error": "Identificadores de cuenta y monto deben ser números enteros."}, 400
+
+    if origen_id == destino_id:
+        return False, {"error": "La cuenta origen y destino deben ser distintas."}, 400
+
     # Comprobamos la disponibilidad del motor C
-    ok, c_result, status = invoke_c_converter(monto_soles)
+    ok, c_result, status = invoke_c_converter(monto_s)
     if not ok:
-        # Retornamos el estado pendiente del motor sin simular transferencias
         return False, c_result, status
     
-    # Cuando el motor C esté compilado, se aplicará la transacción atómica
-    return True, {"mensaje": "Transferencia procesada"}, 201
+    centimos = c_result.get('centimos', 0)
+
+    # Conexión directa a base de datos SQLite (FinanUNI_Vuln)
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE cuentas SET saldo_centimos = saldo_centimos - ? WHERE id = ?;", (centimos, origen_id))
+        cursor.execute("UPDATE cuentas SET saldo_centimos = saldo_centimos + ? WHERE id = ?;", (centimos, destino_id))
+        transfer_id = transfer_repository.create_transfer(origen_id, destino_id, centimos, conn)
+        conn.commit()
+        return True, {
+            "mensaje": "Transferencia ejecutada en FinanUNI_Vuln",
+            "transferencia_id": transfer_id,
+            "centimos": centimos
+        }, 201
+    except Exception as e:
+        conn.rollback()
+        return False, {"error": f"Error en BD: {str(e)}"}, 500

@@ -99,5 +99,13 @@ def reset_db(connection=None):
     Reinicia completamente la base de datos a la semilla acordada para repetir pruebas.
     """
     conn = connection or get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA foreign_keys = OFF;")
+    cursor.execute("DELETE FROM transferencias;")
+    cursor.execute("DELETE FROM cuentas;")
+    cursor.execute("DELETE FROM sesiones;")
+    cursor.execute("DELETE FROM usuarios;")
+    cursor.execute("PRAGMA foreign_keys = ON;")
+    conn.commit()
     init_db(conn)
     load_seed_data(conn)
