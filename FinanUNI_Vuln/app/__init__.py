@@ -1,15 +1,17 @@
 """
-Fábrica de aplicaciones Flask para FinanUNI.
+Fábrica de aplicaciones Flask para FinanUNI_Vuln.
 """
-from flask import Flask
+import os
+from flask import Flask, request
 from .config import Config, VulnConfig
 from .routes.web_routes import web_bp
 from .routes.api_routes import api_bp
-from .database.db import close_db_connection
+from .database.db import close_db_connection, init_db, load_seed_data
+from .services import auth_service
 
 def create_app(config_class=VulnConfig):
     """
-    Crea y configura una instancia de la aplicación Flask.
+    Crea y configura una instancia de la aplicación Flask para FinanUNI_Vuln.
     """
     app = Flask(__name__)
     app.config.from_object(config_class)
@@ -21,15 +23,27 @@ def create_app(config_class=VulnConfig):
     # Registrar cierre de base de datos
     app.teardown_appcontext(close_db_connection)
 
+    # Inicializar y sembrar base de datos si no existe
+    with app.app_context():
+        db_path = app.config.get('DATABASE_PATH')
+        if not os.path.exists(db_path):
+            init_db()
+            load_seed_data()
+
     # Procesador de contexto para plantillas
     @app.context_processor
     def inject_app_context():
+        cookie_name = app.config.get('SESSION_COOKIE_NAME', 'finanuni_vuln_session')
+        session_token = request.cookies.get(cookie_name)
+        user = auth_service.validate_active_session(session_token) if session_token else None
+        
         return {
-            'app_name': app.config.get('APP_NAME', 'FinanUNI'),
+            'app_name': app.config.get('APP_NAME', 'FinanUNI_Vuln'),
             'app_port': app.config.get('PORT', 5000),
-            'is_vulnerable': app.config.get('IS_VULNERABLE', False),
+            'is_vulnerable': app.config.get('IS_VULNERABLE', True),
             'peer_app_url': app.config.get('PEER_APP_URL', 'http://127.0.0.1:5001'),
-            'peer_app_name': app.config.get('PEER_APP_NAME', 'FinanUNI_Sec')
+            'peer_app_name': app.config.get('PEER_APP_NAME', 'FinanUNI_Sec'),
+            'current_user': user
         }
 
     return app

@@ -1,25 +1,30 @@
 """
 Módulo de protección contra Cross-Site Request Forgery (CSRF - AM08 / FinanUNI_Sec).
+Genera y valida tokens CSRF vinculados criptográficamente a la sesión servidora activa.
 """
+import hmac
+import hashlib
+from flask import current_app
 
-def generate_csrf_token():
+def generate_csrf_token(session_id: str) -> str:
     """
-    Genera un token CSRF criptográficamente seguro asociado a la sesión servidora.
-    
-    :return: None en este molde estructural.
-    
-    TODO: Generar token con secrets.token_hex(32) y persistirlo o vincularlo a la sesión activa.
+    Genera un token CSRF derivado de la clave secreta y el identificador de sesión.
     """
-    return None
+    if not session_id:
+        return ""
+    secret = current_app.config.get('SECRET_KEY', 'default_secret').encode('utf-8')
+    token = hmac.new(secret, session_id.encode('utf-8'), hashlib.sha256).hexdigest()
+    return token
 
-def validate_csrf_token(token_received: str, expected_token: str):
+def validate_csrf_token(session_id: str, token_received: str) -> bool:
     """
-    Valida en tiempo constante el token CSRF recibido contra el esperado.
+    Comprueba el token CSRF recibido contra el derivado de la sesión en tiempo constante.
     
-    :param token_received: Token proporcionado en la cabecera o formulario.
-    :param expected_token: Token almacenado en la sesión del usuario.
-    :return: None en este molde estructural.
-    
-    TODO: Validar mediante hmac.compare_digest para prevenir ataques de temporización.
+    Verificamos:
+    - Que el token recibido no sea nulo ni vacío.
+    - Comparamos mediante hmac.compare_digest para prevenir ataques de canal lateral por temporización.
     """
-    return None
+    if not session_id or not token_received:
+        return False
+    expected = generate_csrf_token(session_id)
+    return hmac.compare_digest(expected, token_received.strip())

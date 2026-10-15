@@ -6,52 +6,65 @@
 <div class="card">
     <div class="card-header">
         <h1 class="card-title">Consulta de Movimientos</h1>
-        <span class="badge badge-mock">Maquetación de Interfaz</span>
+        <span class="badge badge-vuln">Laboratorio Vulnerable (SQLi)</span>
     </div>
+
+    {% if not current_user %}
+        <div class="alert alert-warning">
+            ⚠️ <strong>Sin Sesión Activa:</strong> Para consultar movimientos reales de la base de datos, primero debe <a href="{{ url_for('web.login') }}">iniciar sesión</a> (ej. como Ana o Bruno).
+        </div>
+    {% endif %}
 
     <!-- Formulario de Filtros de Consulta -->
     <form id="form-movimientos" style="margin-bottom: 24px;">
-        <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 14px;">
-            Filtros previstos en el contrato de API (<code>GET /api/movimientos</code>). En este molde, el envío consulta la ruta y recibe el estado 501.
-        </p>
+        <div style="background-color: #fff1f2; border: 1px solid #fecdd3; border-radius: var(--radius-sm); padding: 12px; margin-bottom: 16px;">
+            <p style="font-size: 0.85rem; color: #9f1239; margin-bottom: 8px;">
+                <strong>⚡ Vector de Demostración SQL Injection (AM01 / CWE-89):</strong><br>
+                El campo <code>cliente_id</code> se concatena directamente en la consulta SQL. Pruebe una búsqueda legítima o inyecte una condición booleana para extraer registros ajenos:
+            </p>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button type="button" class="btn btn-secondary" style="font-size: 0.78rem; padding: 4px 8px;" onclick="document.getElementById('cliente_id').value='1'">
+                    👤 Filtro Legítimo: Cliente 1 (Ana)
+                </button>
+                <button type="button" class="btn btn-secondary" style="font-size: 0.78rem; padding: 4px 8px; background-color: #fee2e2; border-color: #f87171; color: #991b1b;" onclick="document.getElementById('cliente_id').value='1 OR 1=1'">
+                    ⚡ Inyección SQL: 1 OR 1=1
+                </button>
+            </div>
+        </div>
 
         <div class="form-grid">
             <div class="form-group">
-                <label for="cliente_id">ID de Cliente (Opcional)</label>
-                <input type="number" id="cliente_id" name="cliente_id" placeholder="Ej. 1 (Ana), 2 (Bruno)" min="1" max="2147483647">
-                <small>Entero positivo hasta 2147483647.</small>
+                <label for="cliente_id">ID de Cliente (Parámetro Concatenado)</label>
+                <input type="text" id="cliente_id" name="cliente_id" placeholder="Ej. 1 o 1 OR 1=1">
+                <small>En Vuln admite texto que altera la consulta relacional.</small>
             </div>
 
             <div class="form-group">
                 <label for="fecha_desde">Fecha Desde</label>
                 <input type="date" id="fecha_desde" name="fecha_desde">
-                <small>Formato YYYY-MM-DD UTC.</small>
             </div>
 
             <div class="form-group">
                 <label for="fecha_hasta">Fecha Hasta</label>
                 <input type="date" id="fecha_hasta" name="fecha_hasta">
-                <small>Formato YYYY-MM-DD UTC.</small>
             </div>
 
             <div class="form-group">
                 <label for="monto_min_soles">Monto Mínimo (S/ enteros)</label>
                 <input type="number" id="monto_min_soles" name="monto_min_soles" placeholder="0" min="0" max="21474836">
-                <small>Soles enteros [0, 21474836].</small>
             </div>
 
             <div class="form-group">
                 <label for="monto_max_soles">Monto Máximo (S/ enteros)</label>
                 <input type="number" id="monto_max_soles" name="monto_max_soles" placeholder="10000" min="0" max="21474836">
-                <small>Soles enteros [0, 21474836].</small>
             </div>
         </div>
 
         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
             <button type="submit" class="btn btn-primary">
-                🔍 Aplicar Filtros (Probar API)
+                🔍 Ejecutar Búsqueda en Base de Datos
             </button>
-            <button type="reset" class="btn btn-secondary">
+            <button type="reset" class="btn btn-secondary" onclick="setTimeout(() => document.getElementById('form-movimientos').dispatchEvent(new Event('submit')), 50)">
                 Limpiar Filtros
             </button>
         </div>
@@ -60,14 +73,8 @@
     <!-- Retroalimentación de la API -->
     <div id="status-feedback"></div>
 
-    <!-- Etiqueta obligatoria y aviso de datos de muestra -->
-    <div class="alert alert-warning" style="margin-top: 24px;">
-        <strong>🏷️ Datos de muestra de la interfaz</strong><br>
-        Los registros mostrados a continuación son datos estáticos definidos únicamente para previsualizar el diseño de la tabla en esta entrega de molde inicial. <strong>No proceden de consultas a la base de datos ni representan resultados del sistema.</strong>
-    </div>
-
-    <!-- Tabla con datos de muestra de interfaz -->
-    <div class="table-responsive">
+    <!-- Tabla conectada a base de datos real -->
+    <div class="table-responsive" style="margin-top: 20px;">
         <table>
             <thead>
                 <tr>
@@ -75,27 +82,16 @@
                     <th>Cuenta Origen</th>
                     <th>Cuenta Destino</th>
                     <th>Monto (S/)</th>
-                    <th>Monto (Céntimos)</th>
                     <th>Fecha (UTC)</th>
-                    <th>Detalle / Estado</th>
+                    <th>Detalle</th>
                 </tr>
             </thead>
-            <tbody>
-                {% for mov in sample_data %}
+            <tbody id="tabla-movimientos-body">
                 <tr>
-                    <td><strong>#{{ mov.id }}</strong></td>
-                    <td>Cuenta {{ mov.origen }}</td>
-                    <td>Cuenta {{ mov.destino }}</td>
-                    <td>S/ {{ mov.monto_soles }}</td>
-                    <td>{{ mov.monto_centimos }} céntimos</td>
-                    <td><small>{{ mov.fecha }}</small></td>
-                    <td>
-                        <a href="{{ url_for('web.detalle_transferencia') }}" class="btn btn-secondary" style="padding: 3px 8px; font-size: 0.78rem;">
-                            Ver Ficha
-                        </a>
+                    <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">
+                        Cargando movimientos desde la base de datos...
                     </td>
                 </tr>
-                {% endfor %}
             </tbody>
         </table>
     </div>

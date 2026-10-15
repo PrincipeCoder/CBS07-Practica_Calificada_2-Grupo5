@@ -1,45 +1,103 @@
 """
-Módulo de acceso y conexión a base de datos SQLite.
-Proporciona las firmas de inicialización y gestión de conexiones.
+Módulo de acceso y conexión a base de datos SQLite (FinanUNI_Vuln).
+Gestiona el ciclo de vida de la conexión y la carga de la semilla acordada.
 """
+import os
+import sqlite3
+from flask import g, current_app
+from app.security.crypto import hash_password
 
 def get_db_connection():
     """
-    Obtiene o establece una conexión activa con la base de datos SQLite local.
+    Obtiene la conexión a la base de datos SQLite para la petición actual.
     
-    TODO: Implementar la conexión a SQLite usando la ruta de base de datos
-    configurada en la aplicación (current_app.config['DATABASE_PATH']),
-    configurar row_factory a sqlite3.Row y asegurar aislamiento de transacciones.
+    Comprobamos si ya existe una conexión en el almacén de contexto 'g':
+    - Si no existe, creamos una nueva conexión hacia el archivo en instance/finanuni_vuln.db.
+    - Activamos row_factory = sqlite3.Row para acceder a columnas por nombre.
+    - Habilitamos claves foráneas con PRAGMA foreign_keys = ON para integridad referencial.
     """
-    return None
+    if '_database' not in g:
+        db_path = current_app.config.get('DATABASE_PATH', os.path.join('instance', 'finanuni_vuln.db'))
+        # Aseguramos que la carpeta contenedora exista
+        os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
+        
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON;")
+        g._database = conn
+    return g._database
 
 def close_db_connection(exception=None):
     """
-    Cierra la conexión a la base de datos asociada al contexto de la petición actual.
-    
-    :param exception: Excepción ocurrida durante la petición, si existiera.
-    
-    TODO: Verificar si existe una conexión abierta en el contexto global 'g'
-    y proceder a cerrarla de forma segura.
+    Cierra la conexión al finalizar el ciclo de vida de la petición HTTP.
     """
-    return None
+    db = g.pop('_database', None)
+    if db is not None:
+        db.close()
 
-def init_db():
+def init_db(connection=None):
     """
-    Inicializa el esquema relacional de la base de datos a partir de schema.sql.
+    Crea las tablas a partir del esquema DDL definido en schema.sql.
     
-    TODO: Leer y ejecutar las sentencias DDL del archivo schema.sql para
-    crear las tablas requeridas (usuarios, cuentas, transferencias, sesiones, eventos_auditoria).
+    Leemos el archivo schema.sql relativo a este módulo y ejecutamos el script completo.
+    Si las tablas ya existen, CREATE TABLE IF NOT EXISTS evita sobrescribir.
     """
-    return None
+    conn = connection or get_db_connection()
+    schema_path = os.path.join(os.path.dirname(__file__), 'schema.sql')
+    with open(schema_path, 'r', encoding='utf-8') as f:
+        schema_sql = f.read()
+    conn.executescript(schema_sql)
+    conn.commit()
 
-def load_seed_data():
+def load_seed_data(connection=None):
     """
-    Carga los datos iniciales y reproducibles del laboratorio según la semilla acordada:
-    - Usuarios: Ana (cliente), Bruno (cliente), Auditor (auditor).
-    - Cuentas: 101 (Ana: 5000000 céntimos), 102 (Bruno: 3000000 céntimos), 103 (Bruno: 1000000 céntimos).
-    - Transferencias históricas: 1051, 1052, 1053.
+    Carga los datos iniciales y reproducibles del laboratorio:
+    - Usuarios: 1 Ana (cliente, pass: ana123), 2 Bruno (cliente, pass: bruno123), 3 Auditor (auditor, pass: auditor123).
+    - Cuentas: 101 Ana (5,000,000 céntimos = S/ 50,000.00), 102 Bruno (3,000,000 céntimos), 103 Bruno (1,000,000 céntimos).
+    - Transferencias: 1051 (Ana a Bruno), 1052 (Bruno 102 a 103, AJENA a Ana), 1053 (Bruno 103 a 102).
     
-    TODO: Insertar los registros iniciales garantizando idempotencia y reproducibilidad.
+    Comprobamos si los usuarios ya existen: si no existen, los insertamos con hashes Argon2id válidos.
     """
-    return None
+    conn = connection or get_db_connection()
+    cursor = conn.cursor()
+
+    # 1. Usuarios con hashes reales
+    pass_ana = hash_password("ana123")
+    pass_bruno = hash_password("bruno123")
+    pass_auditor = hash_password("auditor123")
+
+    cursor.execute("""
+        INSERT OR REPLACE INTO usuarios (id, nombre_acceso, password_hash, rol, activo)
+        VALUES 
+            (1, 'ana', ?, 'cliente', 1),
+            (2, 'bruno', ?, 'cliente', 1),
+            (3, 'auditor', ?, 'auditor', 1);
+    """, (pass_ana, pass_bruno, pass_auditor))
+
+    # 2. Cuentas bancarias con saldos iniciales en céntimos
+    cursor.execute("""
+        INSERT OR REPLACE INTO cuentas (id, titular_usuario_id, saldo_centimos)
+        VALUES 
+            (101, 1, 5000000),
+            (102, 2, 3000000),
+            (103, 2, 1000000);
+    """)
+
+    # 3. Transferencias históricas acordadas
+    cursor.execute("""
+        INSERT OR REPLACE INTO transferencias (id, cuenta_origen_id, cuenta_destino_id, monto_centimos, fecha_utc)
+        VALUES 
+            (1051, 101, 102, 10000, '2026-10-14 10:00:00'),
+            (1052, 102, 103, 20000, '2026-10-14 11:30:00'),
+            (1053, 103, 102, 5000, '2026-10-14 12:15:00');
+    """)
+
+    conn.commit()
+
+def reset_db(connection=None):
+    """
+    Reinicia completamente la base de datos a la semilla acordada para repetir pruebas.
+    """
+    conn = connection or get_db_connection()
+    init_db(conn)
+    load_seed_data(conn)

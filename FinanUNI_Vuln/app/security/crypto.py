@@ -1,28 +1,49 @@
 """
 Módulo criptográfico: funciones de hash y verificación de contraseñas.
+Implementa Argon2id para el almacenamiento seguro de credenciales según el requisito RN05.
+Tanto la versión vulnerable como la versión segura comparten esta implementación
+para aislar los defectos exclusivamente en los puntos de demostración asignados.
 """
+import logging
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError, VerificationError, InvalidHashError
 
-def hash_password(plain_password: str):
-    """
-    Genera un hash seguro para la contraseña utilizando Argon2id (RN05).
-    
-    :param plain_password: Cadena con la contraseña en texto plano.
-    :return: None en este molde estructural.
-    
-    TODO: Integrar Argon2id con parámetros recomendados de memoria, tiempo y paralelismo,
-    asegurando sal aleatoria para el almacenamiento seguro de credenciales.
-    """
-    return None
+# Instancia global del derivador de claves Argon2id con parámetros estándar
+_hasher = PasswordHasher(
+    time_cost=3,        # 3 iteraciones
+    memory_cost=65536,  # 64 MiB de memoria
+    parallelism=4,      # 4 hilos paralelos
+    hash_len=32,
+    salt_len=16
+)
 
-def verify_password(plain_password: str, hashed_password: str):
+def hash_password(plain_password: str) -> str:
     """
-    Verifica si una contraseña en texto plano coincide con el hash almacenado.
+    Genera un hash seguro para la contraseña en texto plano utilizando Argon2id.
     
     :param plain_password: La contraseña enviada por el usuario.
-    :param hashed_password: El hash recuperado del registro de usuario.
-    :return: None en este molde estructural (no devolver True ni False inventado).
-    
-    TODO: Comparar la contraseña en tiempo constante contra el hash Argon2id
-    y retornar un booleano legítimo basado en el resultado de la función criptográfica.
+    :return: Cadena con el hash codificado que incluye algoritmo, versión, costo y sal.
     """
-    return None
+    if not plain_password:
+        raise ValueError("La contraseña no puede estar vacía para generar el hash.")
+    return _hasher.hash(plain_password)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """
+    Comprueba si la contraseña en texto plano coincide con el hash Argon2id almacenado.
+    
+    Comprobamos si el hash coincide de forma resistente a ataques de temporización:
+    - Si coincide, verify() retorna True sin lanzar excepción.
+    - Si no coincide o el formato es incorrecto, capturamos VerifyMismatchError/InvalidHashError
+      y retornamos False para evitar caídas no controladas o mensajes que revelen detalles internos.
+    """
+    if not plain_password or not hashed_password:
+        return False
+    try:
+        return _hasher.verify(hashed_password, plain_password)
+    except (VerifyMismatchError, VerificationError, InvalidHashError):
+        # La contraseña no coincide o el hash está corrupto
+        return False
+    except Exception as e:
+        logging.error("Error inesperado verificando contraseña: %s", type(e).__name__)
+        return False

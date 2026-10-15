@@ -1,39 +1,63 @@
 """
-Repositorio de cuentas bancarias: consulta y actualización atómica de saldos en céntimos.
+Repositorio de cuentas bancarias (FinanUNI_Vuln).
+Operaciones de consulta y persistencia de cuentas y saldos en céntimos.
 """
+from app.database.db import get_db_connection
 
 def find_by_id(account_id: int):
     """
-    Busca una cuenta bancaria por su identificador.
-    
-    :param account_id: ID de cuenta (ej. 101, 102, 103).
-    :return: None en este molde estructural.
-    
-    TODO: Consultar tabla 'cuentas' obteniendo id, titular_usuario_id y saldo_centimos.
+    Busca una cuenta bancaria por su identificador numérico.
     """
+    if not account_id:
+        return None
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, titular_usuario_id, saldo_centimos 
+        FROM cuentas 
+        WHERE id = ?;
+    """, (account_id,))
+    row = cursor.fetchone()
+    if row:
+        return dict(row)
     return None
 
 def find_by_user_id(user_id: int):
     """
     Obtiene todas las cuentas bancarias pertenecientes a un titular.
-    
-    :param user_id: ID del usuario titular.
-    :return: None en este molde estructural.
-    
-    TODO: Consultar lista de cuentas asociadas al usuario titular.
     """
-    return None
+    if not user_id:
+        return []
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, titular_usuario_id, saldo_centimos 
+        FROM cuentas 
+        WHERE titular_usuario_id = ?;
+    """, (user_id,))
+    return [dict(r) for r in cursor.fetchall()]
 
 def update_balance_atomic(account_id: int, delta_centimos: int, connection=None):
     """
-    Actualiza el saldo de una cuenta dentro de una transacción activa (RF10).
-    Asegura que el saldo permanezca en el rango [0, 2147483647].
+    Actualiza el saldo de una cuenta dentro de una transacción.
     
-    :param account_id: ID de la cuenta a modificar.
-    :param delta_centimos: Monto positivo (abono) o negativo (cargo) en céntimos.
-    :param connection: Conexión transaccional activa.
-    :return: None en este molde estructural.
-    
-    TODO: Ejecutar sentencia UPDATE dentro de la transacción verificando saldo resultante.
+    Comprobamos que el nuevo saldo no sea negativo ni exceda el límite int32_t (2147483647).
+    Si se viola la condición, lanzamos ValueError para forzar rollback de la transacción.
     """
-    return None
+    conn = connection or get_db_connection()
+    cursor = conn.cursor()
+    
+    # Leemos saldo actual
+    cursor.execute("SELECT saldo_centimos FROM cuentas WHERE id = ?;", (account_id,))
+    row = cursor.fetchone()
+    if not row:
+        raise ValueError(f"Cuenta {account_id} inexistente.")
+    
+    nuevo_saldo = row['saldo_centimos'] + delta_centimos
+    if nuevo_saldo < 0:
+        raise ValueError(f"Saldo insuficiente en cuenta {account_id} (saldo actual: {row['saldo_centimos']} céntimos).")
+    if nuevo_saldo > 2147483647:
+        raise ValueError(f"El saldo resultante en cuenta {account_id} excedería el límite de INT32_MAX.")
+    
+    cursor.execute("UPDATE cuentas SET saldo_centimos = ? WHERE id = ?;", (nuevo_saldo, account_id))
+    return nuevo_saldo

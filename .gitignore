@@ -10,10 +10,13 @@ ENV/
 .venv/
 
 # Flask & SQLite Database
-instance/*.db
-instance/*.sqlite
-instance/*.sqlite3
-!instance/.gitkeep
+*.db
+*.sqlite
+*.sqlite3
+**/instance/*.db
+**/instance/*.sqlite
+**/instance/*.sqlite3
+!**/instance/.gitkeep
 
 # Logs
 logs/*.log

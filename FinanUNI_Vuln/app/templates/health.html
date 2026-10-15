@@ -14,7 +14,7 @@
     </div>
 
     <div class="alert alert-info">
-        Este panel informa el estado operativo de los componentes de la aplicación <strong>{{ app_name }}</strong> en el avance actual (molde inicial).
+        Este panel informa el estado operativo de los componentes de la aplicación <strong>{{ app_name }}</strong> tras completar las responsabilidades de las Etapas 5 y 6.
     </div>
 
     <div class="table-responsive" style="margin-bottom: 24px;">
@@ -33,29 +33,53 @@
                     <td>Escuchando en <code>http://127.0.0.1:{{ app_port }}</code>. Enrutamiento y estáticos operativos.</td>
                 </tr>
                 <tr>
-                    <td><strong>Navegación e Interfaces</strong></td>
-                    <td><span class="badge badge-sec">Activo (OK)</span></td>
-                    <td>Cuatro pantallas base cargadas y navegables sin sesión forzada.</td>
-                </tr>
-                <tr>
-                    <td><strong>Endpoints de Negocio</strong></td>
-                    <td><span class="badge badge-mock">Pendiente (HTTP 501)</span></td>
-                    <td>Configurados con código HTTP 501 para prevenir ejecuciones prematuras.</td>
-                </tr>
-                <tr>
                     <td><strong>Base de Datos SQLite</strong></td>
-                    <td><span class="badge badge-mock">Pendiente</span></td>
-                    <td>Firmas y DDL preparados. Conexión y semilla pendientes de integración.</td>
+                    <td><span class="badge badge-sec">Activo (OK)</span></td>
+                    <td>Semilla inicial cargada (Ana, Bruno, Auditor; cuentas 101, 102, 103; transferencias 1051, 1052, 1053).</td>
+                </tr>
+                <tr>
+                    <td><strong>Autenticación y Sesiones</strong></td>
+                    <td><span class="badge badge-sec">Activo (OK)</span></td>
+                    <td>Hashing Argon2id funcional. Sesiones servidoras independientes ({{ session_cookie_name }}).</td>
+                </tr>
+                <tr>
+                    <td><strong>Búsqueda de Movimientos</strong></td>
+                    <td>
+                        {% if is_vulnerable %}
+                            <span class="badge badge-vuln">Vulnerable (SQLi activo)</span>
+                        {% else %}
+                            <span class="badge badge-sec">Seguro (Parametrizado)</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if is_vulnerable %}
+                            Concatenación directa de filtros en SQL para demostración académica (AM01 / CWE-89).
+                        {% else %}
+                            Validación de rangos, tipos y enlace estricto con marcadores '?' (RF05).
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>Detalle de Transferencias</strong></td>
+                    <td>
+                        {% if is_vulnerable %}
+                            <span class="badge badge-vuln">Vulnerable (IDOR activo)</span>
+                        {% else %}
+                            <span class="badge badge-sec">Seguro (404 Uniforme)</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if is_vulnerable %}
+                            Omisión deliberada de autorización sobre el recurso transferencias (AM02 / CWE-639).
+                        {% else %}
+                            Control estricto de titularidad y participación con respuesta 404 uniforme (RF06).
+                        {% endif %}
+                    </td>
                 </tr>
                 <tr>
                     <td><strong>Motor Numérico en C</strong></td>
                     <td><span class="badge badge-mock">Pendiente</span></td>
-                    <td>Ubicación y contrato <code>conversor.h</code> definidos. Compilación pendiente (Integrante 2).</td>
-                </tr>
-                <tr>
-                    <td><strong>Controles de Seguridad</strong></td>
-                    <td><span class="badge badge-mock">Pendiente</span></td>
-                    <td>Argon2id, RBAC, validadores contextuales y token CSRF preparados en firmas.</td>
+                    <td>Contrato <code>conversor.h</code> definido. Compilación y ejecutable pendientes a cargo del Integrante 2.</td>
                 </tr>
             </tbody>
         </table>
@@ -63,9 +87,6 @@
 
     <div style="border-top: 1px solid var(--border-color); padding-top: 18px;">
         <h2 style="font-size: 1.05rem; margin-bottom: 10px;">Consulta Directa al Endpoint REST de Salud</h2>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
-            Haga clic en el botón para consultar <code>GET /api/health</code> y obtener la respuesta JSON directa de la infraestructura:
-        </p>
         <button id="btn-check-health" class="btn btn-secondary">
             🩺 Consultar /api/health (JSON)
         </button>

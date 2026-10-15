@@ -1,19 +1,41 @@
 {% extends "base.html" %}
 
-{% block title %}Detalle de Transferencia{% endblock %}
+{% block title %}Detalle de Transferencia Protegido{% endblock %}
 
 {% block content %}
 <div class="card">
     <div class="card-header">
         <h1 class="card-title">Detalle de Transferencia</h1>
-        <span class="badge badge-mock">Maquetación de Interfaz</span>
+        <span class="badge badge-sec">Laboratorio Seguro (RBAC + 404 Uniforme)</span>
     </div>
+
+    {% if not current_user %}
+        <div class="alert alert-warning">
+            ⚠️ <strong>Sin Sesión Activa:</strong> Debe <a href="{{ url_for('web.login') }}">iniciar sesión</a> (ej. como Ana o Bruno) para consultar transferencias.
+        </div>
+    {% endif %}
 
     <!-- Buscador por Identificador de Transferencia -->
     <form id="form-detalle" style="margin-bottom: 24px;">
-        <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 12px;">
-            Búsqueda por identificador directo (<code>GET /api/transferencias/{id}</code>). Contrato: entero decimal positivo hasta 2147483647 (máx. 10 dígitos).
-        </p>
+        <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: var(--radius-sm); padding: 12px; margin-bottom: 16px;">
+            <p style="font-size: 0.85rem; color: #065f46; margin-bottom: 8px;">
+                <strong>🛡️ Mitigación de IDOR (AM02 / RF06 / T05):</strong><br>
+                Si ha iniciado sesión como <strong>Ana</strong>, consulte su transferencia propia (1051, resultado 200).
+                Luego intente consultar la transferencia <strong>1052</strong> (de Bruno). El servidor denegará la lectura retornando <strong>404 Uniforme</strong>:
+            </p>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button type="button" class="btn btn-secondary" style="font-size: 0.78rem; padding: 4px 8px;" onclick="buscarId(1051)">
+                    📄 Transferencia #1051 (Propia de Ana - 200 OK)
+                </button>
+                <button type="button" class="btn btn-secondary" style="font-size: 0.78rem; padding: 4px 8px; background-color: #fee2e2; border-color: #f87171; color: #991b1b;" onclick="buscarId(1052)">
+                    🛡️ Probar IDOR: Transferencia #1052 (Será bloqueada con 404)
+                </button>
+                <button type="button" class="btn btn-secondary" style="font-size: 0.78rem; padding: 4px 8px;" onclick="buscarId(1053)">
+                    📄 Transferencia #1053 (Solo Bruno o Auditor)
+                </button>
+            </div>
+        </div>
+
         <div style="display: flex; gap: 10px; max-width: 480px;">
             <input type="number" id="transfer_id" name="transfer_id" placeholder="Ej. 1051, 1052 o 1053" min="1" max="2147483647" required style="flex: 1; padding: 9px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
             <button type="submit" class="btn btn-primary">
@@ -25,47 +47,56 @@
     <!-- Retroalimentación de la API -->
     <div id="status-feedback"></div>
 
-    <!-- Etiqueta obligatoria y aviso de datos de muestra -->
-    <div class="alert alert-warning" style="margin-top: 24px;">
-        <strong>🏷️ Datos de muestra de la interfaz</strong><br>
-        La siguiente ficha contiene valores estáticos predefinidos para ilustrar cómo se presentará el detalle de una transferencia. <strong>No procede de una consulta a la base de datos ni representa un resultado del sistema.</strong>
-    </div>
-
-    <!-- Ficha de detalle estática -->
-    <div style="background-color: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px;">
+    <!-- Ficha de detalle de datos reales -->
+    <div id="ficha-detalle-transferencia" style="display: none; background-color: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; margin-top: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
             <div>
                 <span style="font-size: 0.82rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Identificador de Operación</span>
-                <h2 style="font-size: 1.4rem; color: var(--primary-color);">Transferencia #{{ sample_data.id }}</h2>
+                <h2 id="det-id" style="font-size: 1.4rem; color: var(--primary-color);">#1051</h2>
             </div>
-            <span class="badge badge-sec">{{ sample_data.estado }}</span>
+            <span class="badge badge-sec">AUTORIZADA Y CONFIRMADA</span>
         </div>
 
         <div class="form-grid" style="margin-bottom: 10px;">
             <div>
                 <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">CUENTA ORIGEN (DÉBITO)</span>
-                <p style="font-size: 1.05rem; font-weight: 600; margin-top: 2px;">Cuenta {{ sample_data.cuenta_origen }}</p>
-                <small style="color: var(--text-muted);">Titular: {{ sample_data.titular_origen }}</small>
+                <p id="det-origen" style="font-size: 1.05rem; font-weight: 600; margin-top: 2px;">Cuenta 101 (Ana)</p>
             </div>
 
             <div>
                 <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">CUENTA DESTINO (CRÉDITO)</span>
-                <p style="font-size: 1.05rem; font-weight: 600; margin-top: 2px;">Cuenta {{ sample_data.cuenta_destino }}</p>
-                <small style="color: var(--text-muted);">Titular: {{ sample_data.titular_destino }}</small>
+                <p id="det-destino" style="font-size: 1.05rem; font-weight: 600; margin-top: 2px;">Cuenta 102 (Bruno)</p>
             </div>
 
             <div>
                 <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">MONTO EN SOLES</span>
-                <p style="font-size: 1.15rem; font-weight: 700; color: #047857; margin-top: 2px;">S/ {{ sample_data.monto_soles }}</p>
-                <small style="color: var(--text-muted);">Equivalente: {{ sample_data.monto_centimos }} céntimos</small>
+                <p id="det-monto-soles" style="font-size: 1.15rem; font-weight: 700; color: #047857; margin-top: 2px;">S/ 100.00</p>
+                <small id="det-monto-centimos" style="color: var(--text-muted);">10000 céntimos</small>
             </div>
 
             <div>
                 <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">FECHA Y HORA (UTC)</span>
-                <p style="font-size: 0.95rem; font-weight: 600; margin-top: 2px;">{{ sample_data.fecha_utc }}</p>
-                <small style="color: var(--text-muted);">ID Correlación: {{ sample_data.correlacion_id }}</small>
+                <p id="det-fecha" style="font-size: 0.95rem; font-weight: 600; margin-top: 2px;">2026-10-14 10:00:00</p>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+function buscarId(id) {
+    const input = document.getElementById('transfer_id');
+    if (input) {
+        input.value = id;
+        document.getElementById('form-detalle')?.dispatchEvent(new Event('submit'));
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const idParam = urlParams.get('id');
+    if (idParam) {
+        buscarId(idParam);
+    }
+});
+</script>
 {% endblock %}

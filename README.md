@@ -1,147 +1,108 @@
-# FinanUNI — Molde Inicial de Arquitectura e Interfaces Web
+# FinanUNI — Proyecto Académico de Seguridad de Software
 
 **Práctica Calificada 2 · Seguridad de Software (CBS07)**  
 *Universidad Nacional de Ingeniería (UNI) — 2026-II*  
-**Versión del avance**: 0.1.0 (Molde estructural y pantallas activas)
+**Versión actual**: 0.2.0 (Etapas 5 y 6 — Responsabilidades del Integrante 1 y Funciones del Integrante 3)
 
 ---
 
 ## 1. Propósito Académico
 
-**FinanUNI** es un proyecto académico diseñado para estudiar de forma práctica y comparativa los principios de *Security by Design*, modelado de amenazas (STRIDE/DREAD) y la corrección de fallas críticas de seguridad de software según los lineamientos del curso CBS07:
+**FinanUNI** es un laboratorio comparativo para el estudio de vulnerabilidades y controles de seguridad en aplicaciones financieras web. El proyecto implementa dos versiones completas e independientes en paralelo:
 
-1. **SQL Injection (SQLi / CWE-89)** en la búsqueda y filtrado de movimientos financieros.
-2. **Insecure Direct Object Reference (IDOR / CWE-639)** en la consulta no autorizada de transferencias.
-3. **Integer Overflow (CWE-190)** en la conversión numérica de soles a céntimos procesada por un módulo nativo en C.
-
-El repositorio alberga dos aplicaciones web independientes que operan en paralelo para facilitar su posterior análisis diferencial:
-- **`FinanUNI_Vuln`**: Instancia intencionalmente vulnerable para evidenciar los vectores de explotación.
-- **`FinanUNI_Sec`**: Instancia corregida que implementará los controles defensivos y validará la mitigación de los riesgos.
-
-> [!NOTE]
-> **Alcance de este avance**: Este commit contiene **únicamente la estructura modular, los contratos arquitectónicos y las interfaces web iniciales**. No implementa operaciones financieras reales, conexiones a bases de datos ni lógica de negocio, las cuales se desarrollarán en los siguientes avances según la división de responsabilidades acordada.
+- **`FinanUNI_Vuln`** (`http://127.0.0.1:5000`): Evidencia vulnerabilidades críticas de software en un entorno local controlado:
+  - **SQL Injection (SQLi / AM01 / CWE-89)** en la búsqueda y filtrado de movimientos.
+  - **Insecure Direct Object Reference (IDOR / AM02 / CWE-639)** en la consulta de transferencias por identificador omitiendo autorización.
+- **`FinanUNI_Sec`** (`http://127.0.0.1:5001`): Implementa los controles defensivos correspondientes:
+  - **Consultas 100% parametrizadas y validación contextual de entradas (RF05)**.
+  - **Control de acceso por recurso (RBAC) con respuesta HTTP 404 uniforme contra IDOR (RF06 / RN04)**.
+  - **Protección contra Cross-Site Request Forgery (CSRF / AM08)**.
+  - **Hashing de contraseñas con Argon2id (RN05)** y sesiones servidoras independientes.
 
 ---
 
-## 2. URLs y Puertos Asignados
+## 2. Semilla Reproducible del Laboratorio
 
-| Aplicación | Puerto | URL Local | Descripción |
-| :--- | :--- | :--- | :--- |
-| **FinanUNI_Vuln** | `5000` | `http://127.0.0.1:5000` | Instancia vulnerable de laboratorio (cookie `finanuni_vuln_session`). |
-| **FinanUNI_Sec** | `5001` | `http://127.0.0.1:5001` | Instancia protegida con controles de seguridad (cookie `finanuni_sec_session`). |
+Ambas aplicaciones se inicializan automáticamente con la semilla acordada en la Etapa 2:
 
-Ambas aplicaciones se ejecutan en *loopback* (`127.0.0.1`) de manera completamente independiente y pueden funcionar simultáneamente.
+### Usuarios y Credenciales Ficticias
+| ID | Usuario | Contraseña Ficticia | Rol | Propósito en el Laboratorio |
+| :---: | :---: | :---: | :---: | :--- |
+| `1` | `ana` | `ana123` | `cliente` | Titular de la cuenta 101. Consulta movimientos propios e intenta IDOR hacia 1052. |
+| `2` | `bruno` | `bruno123` | `cliente` | Titular de las cuentas 102 y 103. Titular de la transferencia privada 1052. |
+| `3` | `auditor` | `auditor123` | `auditor` | Rol de auditoría con lectura global de transferencias y prohibición de transferir. |
+
+### Cuentas Bancarias
+- **Cuenta 101**: Titular Ana, Saldo inicial: `5,000,000` céntimos (S/ 50,000.00).
+- **Cuenta 102**: Titular Bruno, Saldo inicial: `3,000,000` céntimos (S/ 30,000.00).
+- **Cuenta 103**: Titular Bruno, Saldo inicial: `1,000,000` céntimos (S/ 10,000.00).
+
+### Transferencias Históricas
+- **#1051**: Cuenta 101 ➔ Cuenta 102 por S/ 100.00 (10,000 céntimos). **Participan Ana y Bruno**.
+- **#1052**: Cuenta 102 ➔ Cuenta 103 por S/ 200.00 (20,000 céntimos). **Exclusiva de Bruno (AJENA a Ana)**.
+- **#1053**: Cuenta 103 ➔ Cuenta 102 por S/ 50.00 (5,000 céntimos). **Exclusiva de Bruno**.
 
 ---
 
-## 3. Instalación de Dependencias y Ejecución
+## 3. Instalación y Ejecución
 
-### Requisitos Previos
-- Python 3.10 o superior (verificado con Python 3.14).
-- Gestor de paquetes `pip`.
-
-### Paso 1: Instalación de Dependencias
-Instale los paquetes mínimos requeridos (Flask):
+### Dependencias
+Instale los paquetes requeridos (Flask y Argon2-cffi):
 ```bash
 pip install -r FinanUNI_Vuln/requirements.txt
 ```
-*(Ambas aplicaciones comparten la misma dependencia base en este avance).*
 
-### Paso 2: Ejecución de las Aplicaciones
-
-#### Opción A: Arrancar ambas aplicaciones simultáneamente (Recomendado)
-Utilice el script utilitario provisto en la raíz del repositorio:
+### Ejecutar Ambas Aplicaciones en Simultáneo
 ```bash
 python run_both.py
 ```
-Este comando levantará `FinanUNI_Vuln` en el puerto 5000 y `FinanUNI_Sec` en el puerto 5001 al mismo tiempo. Para detener ambas, presione `Ctrl + C`.
+- **FinanUNI_Vuln**: `http://127.0.0.1:5000` (Cookie: `finanuni_vuln_session`)
+- **FinanUNI_Sec**: `http://127.0.0.1:5001` (Cookie: `finanuni_sec_session`)
 
-#### Opción B: Arrancar cada aplicación por separado
-- **Para FinanUNI_Vuln (Puerto 5000):**
-  ```bash
-  python FinanUNI_Vuln/run.py
-  ```
-- **Para FinanUNI_Sec (Puerto 5001):**
-  ```bash
-  python FinanUNI_Sec/run.py
-  ```
+*(Presione `Ctrl + C` para detener ambos servidores limpiamente).*
 
 ---
 
-## 4. Qué Funciona Realmente en este Avance
+## 4. Verificación de Vulnerabilidades y Controles
 
-Las siguientes funciones de infraestructura e interfaz se encuentran 100% implementadas y operativas:
+### A. Demostración de SQL Injection (AM01 / CWE-89)
+1. Inicie sesión como **Ana** (`ana` / `ana123`) en `FinanUNI_Vuln` (`:5000`).
+2. Diríjase a **Movimientos** e ingrese en el filtro *ID de Cliente*: `1 OR 1=1`.
+3. **Resultado en Vuln**: La consulta concatenada se altera y la aplicación expone las 3 transferencias de la base de datos (1051, 1052 y 1053).
+4. Pruebe el mismo filtro en `FinanUNI_Sec` (`:5001`):
+5. **Resultado en Sec**: El validador contextual detecta caracteres no numéricos y rechaza la petición con **HTTP 400 Bad Request**, protegiendo la base de datos.
 
-1. **Aplicaciones Flask y Enrutamiento**:
-   - Creación mediante patrón *Application Factory* (`create_app()`).
-   - Configuración individual de puertos (5000 y 5001), secretos y nombres de cookie de sesión.
-   - Servido de archivos estáticos (CSS y JavaScript) y plantillas Jinja2.
+### B. Demostración de IDOR (AM02 / CWE-639)
+1. Inicie sesión como **Ana** en `FinanUNI_Vuln` (`:5000`).
+2. Diríjase a **Detalle** y busque el ID `1051` (transferencia legítima de Ana ➔ HTTP 200).
+3. Cambie el ID a `1052` (transferencia entre cuentas 102 y 103 de Bruno).
+4. **Resultado en Vuln**: El endpoint expone con **HTTP 200** la transferencia privada de Bruno porque omitió verificar la titularidad.
+5. Inicie sesión como **Ana** en `FinanUNI_Sec` (`:5001`) y consulte `1052`:
+6. **Resultado en Sec**: El servidor verifica la participación y retorna **HTTP 404 Recurso no encontrado** uniforme, impidiendo el acceso y la enumeración de identificadores.
+7. Inicie sesión como **Auditor** en `FinanUNI_Sec` y consulte `1052`: la consulta es permitida (HTTP 200) según la matriz RBAC.
 
-2. **Cuatro Pantallas Base Activas en Ambas Versiones**:
-   - **Inicio de sesión (`/login` o `/`)**: Formulario con campos de usuario y contraseña ficticios.
-   - **Consulta de movimientos (`/movimientos`)**: Formulario con filtros de cliente, rango de fechas UTC y montos enteros en soles.
-   - **Detalle de transferencia (`/transferencias/detalle`)**: Buscador por identificador numérico de operación.
-   - **Formulario de transferencia (`/transferencias/nueva`)**: Formulario con cuenta origen, cuenta destino, monto en soles enteros y nota explicativa de la restricción numérica.
-   - **Pantalla de salud (`/health`)**: Tablero visual con el estado de los componentes e inspección de `/api/health`.
-
-3. **Navegación Fluida de Demostración**:
-   - Barra de navegación accesible en todo momento para recorrer las pantallas sin requerir autenticación previa ni simular sesiones falsas.
-   - Botón directo para alternar entre ambas instancias desde la interfaz.
-   - Distintivo visual visible en la cabecera que identifica claramente la versión (`⚠️ VULNERABLE · PUERTO 5000` o `🛡️ SEGURA · PUERTO 5001`).
-
-4. **Manejo de Formularios y Respuestas HTTP 501**:
-   - Al enviar cualquiera de los formularios de las pantallas, la interfaz efectúa una petición asíncrona a los endpoints correspondientes de la API (`/api/login`, `/api/movimientos`, `/api/transferencias`).
-   - Cada endpoint de negocio responde formalmente con el código de estado **HTTP 501 Not Implemented** y el mensaje: `"Funcionalidad pendiente de implementación"`.
-   - El frontend captura este código y muestra una advertencia informativa clara, **sin simular accesos correctos, transferencias ficticias ni saldos actualizados**.
-
-5. **Endpoint de Salud Básico**:
-   - `GET /api/health` responde con HTTP 200 y JSON indicando la disponibilidad de la instancia web.
+### C. Coordinación con el Motor en C
+- El adaptador en Python respeta el contrato `motor_c/conversor.h`.
+- Mientras el binario `conversor_c` no esté compilado por el Integrante 2, cualquier solicitud de transferencia responde explícitamente con **HTTP 501**, garantizando que ningún saldo se altere sin el cálculo nativo validado.
 
 ---
 
-## 5. Diferenciación entre Datos Visuales de Muestra y Resultados Reales
-
-Para cumplir con el diseño visual sin recurrir a datos simulados que aparenten funcionalidad inexistente:
-- **Datos de muestra de la interfaz**: En las pantallas de consulta de movimientos y detalle de transferencia, la tabla y la ficha muestran ejemplos visuales estáticos (IDs 1051, 1052, 1053) acompañados de una etiqueta destacada:
-  > **🏷️ DATOS DE MUESTRA DE LA INTERFAZ**  
-  > *Los registros mostrados a continuación son datos estáticos definidos únicamente para previsualizar el diseño de la tabla en esta entrega de molde inicial. No proceden de consultas a la base de datos ni representan resultados del sistema.*
-- Ninguno de estos datos proviene de consultas SQL ni de la capa de persistencia.
-
----
-
-## 6. Funcionalidades que Permanecen Pendientes
-
-Las siguientes funciones **NO** están implementadas y cuentan únicamente con firmas y marcadores `# TODO` en sus respectivos módulos:
-
-- **Autenticación e Identidad**: Verificación de credenciales, hashing con Argon2id, creación y expiración de sesiones servidoras opacas.
-- **Autorización y Control de Acceso**: Matriz de permisos RBAC (cliente vs. auditor), denegación por defecto y comprobación de propiedad de recursos contra IDOR.
-- **Validación de Entradas**: Validación contextual estricta de tipos, formatos, longitudes y rangos de datos en el servidor.
-- **Persistencia**: Conexión activa a SQLite, creación de tablas a partir de `schema.sql` y carga de la semilla reproducible.
-- **Operaciones Financieras**: Lógica contable de débito, crédito, cálculo de saldos y confirmación atómica de transferencias.
-- **Auditoría Funcional**: Registro persistente de eventos estructurados excluyendo secretos.
-- **Motor Numérico en C**: Código fuente C, compilación del ejecutable `conversor_c` y adaptador de subproceso en Python.
-- **Vulnerabilidades y Controles**: Inyección SQL, acceso indebido por ID, desbordamiento de enteros y sus respectivas defensas en `FinanUNI_Sec`.
-
----
-
-## 7. Próximas Tareas según Responsabilidades Acordadas
-
-| Responsable | Alcance de Tareas Inmediatas |
-| :--- | :--- |
-| **Integrante 1** *(y funciones del 3)* | **Validación e Inyecciones; Identidad, Autorización e Integración:**<br>- Implementar repositorio de consultas de movimientos y evidenciar SQLi concatenada en `Vuln`.<br>- Implementar validación contextual y parametrización en `Sec` (RF04, RF05).<br>- Implementar autenticación Argon2id, sesiones servidoras y RBAC (cliente/auditor) (RF02, RF07).<br>- Implementar control de propiedad de transferencias contra IDOR con respuesta 404 uniforme (RF06). |
-| **Integrante 2** *(Compañero)* | **Motor C y Límites Numéricos:**<br>- Implementar el programa C `conversor_c` bajo el contrato `conversor.h` (límite 21,474,836 soles / int32_t) (RF08).<br>- Evidenciar el desbordamiento de enteros (CWE-190) y compilar con detector de comportamiento indefinido.<br>- Programar la validación de precondiciones numéricas en `Sec`.<br>- Diseñar pruebas numéricas y análisis de límites de memoria (T07, T08). |
-| **Ambos** | **Integración y Evaluación:**<br>- Integrar la transacción atómica de transferencia conectando Flask, SQLite y el motor C (RF09, RF10).<br>- Auditoría estructurada sin fugas de secretos (RF11).<br>- Ejecución de la matriz de pruebas T01 a T11, revisión cruzada de código y registro crítico del uso de IA. |
-
----
-
-## 8. Verificación de Infraestructura
-
-Para comprobar que el molde inicial cumple con todos los requisitos y que ningún endpoint o formulario realiza operaciones no autorizadas, ejecute las pruebas unitarias automatizadas:
+## 5. Ejecución de Pruebas Automatizadas
 
 ```bash
-# Pruebas en FinanUNI_Vuln
-python -m unittest FinanUNI_Vuln/tests/test_scaffold.py
+# 1. Pruebas de la versión vulnerable (Etapa 5): login, SQLi e IDOR
+python -m unittest FinanUNI_Vuln/tests/test_etapa5.py
 
-# Pruebas en FinanUNI_Sec
-python -m unittest FinanUNI_Sec/tests/test_scaffold.py
+# 2. Pruebas de la versión corregida (Etapa 6): Argon2id, CSRF, validación, 404 uniforme y RBAC
+python -m unittest FinanUNI_Sec/tests/test_etapa6.py
+
+# 3. Pruebas diferenciales comparativas directas (Vuln vs. Sec)
+python -m unittest tests/comparacion/test_diferencial.py
 ```
+*(Las 18 pruebas unitarias e integradas se ejecutan con resultados exitosos).*
+
+---
+
+## 6. Documentación Adicional
+- [docs/etapas_1_2_3_especificacion.md](file:///c:/Users/ANGHELOKENEDYPRINCIP/Documents/GitHub/CBS07-Practica_Calificada_2-Grupo5/docs/etapas_1_2_3_especificacion.md): Especificación de Requisitos, Arquitectura y Modelo de Amenazas.
+- [docs/registro_ia.md](file:///c:/Users/ANGHELOKENEDYPRINCIP/Documents/GitHub/CBS07-Practica_Calificada_2-Grupo5/docs/registro_ia.md): Registro crítico de prompts, evaluaciones y decisiones adoptadas (DE04).

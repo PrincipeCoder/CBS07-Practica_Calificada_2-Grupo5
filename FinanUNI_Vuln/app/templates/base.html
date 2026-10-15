@@ -5,12 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}FinanUNI{% endblock %} - CBS07 Seguridad de Software</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <meta name="csrf-token" content="{{ csrf_token or '' }}">
 </head>
 <body>
     <!-- Banner de Advertencia Académica -->
     <div class="top-notice">
         🔬 <strong>Entorno Académico Controlado · CBS07 Seguridad de Software 2026-II</strong> — 
-        Avance Inicial: Molde arquitectónico y pantallas activas. Lógica de negocio pendiente.
+        {% if is_vulnerable %}
+            Laboratorio Vulnerable (Etapa 5): SQLi e IDOR activos.
+        {% else %}
+            Laboratorio Corregido (Etapa 6): Parametrización, RBAC, 404 uniforme y CSRF activos.
+        {% endif %}
         <a href="{{ peer_app_url }}" target="_blank" style="margin-left: 8px;">Abrir {{ peer_app_name }} ↗</a>
     </div>
 
@@ -44,6 +49,16 @@
                 <a href="{{ url_for('web.health_page') }}" class="nav-link {% if active_page == 'health' %}active{% endif %}">
                     🩺 Estado
                 </a>
+
+                {% if current_user %}
+                    <div style="display: flex; align-items: center; background-color: #f1f5f9; padding: 3px 10px; border-radius: var(--radius-sm); font-size: 0.82rem; margin-left: 6px;">
+                        <span>👤 <strong>{{ current_user.nombre_acceso }}</strong> ({{ current_user.rol }})</span>
+                        <button id="btn-logout-nav" class="btn btn-secondary" style="padding: 2px 6px; font-size: 0.75rem; margin-left: 8px;">
+                            Salir
+                        </button>
+                    </div>
+                {% endif %}
+
                 <a href="{{ peer_app_url }}" class="peer-switch-btn" title="Ir a la aplicación paralela">
                     Cambiar a {{ peer_app_name }}
                 </a>
@@ -59,7 +74,7 @@
     <!-- Pie de Página -->
     <footer>
         <p><strong>FinanUNI</strong> — Laboratorio de Seguridad de Software (CBS07) · Universidad Nacional de Ingeniería (UNI)</p>
-        <p>Grupo 5 · Etapas 1, 2 y 3 (Diseño, Arquitectura y Modelo de Amenazas) · Versión 0.1.0 (Molde Inicial)</p>
+        <p>Grupo 5 · Etapas 5 y 6 (Vulnerabilidades y Controles Defensivos) · Versión 0.2.0</p>
     </footer>
 
     <!-- Script de Control -->
