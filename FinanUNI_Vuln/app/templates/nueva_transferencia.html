@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Nueva Transferencia{% endblock %}
+
+{% block content %}
+<div style="max-width: 640px; margin: 20px auto;">
+    <div class="card">
+        <div class="card-header">
+            <h1 class="card-title">Ordenar Transferencia</h1>
+            {% if is_vulnerable %}
+                <span class="badge badge-vuln">FinanUNI_Vuln (5000)</span>
+            {% else %}
+                <span class="badge badge-sec">FinanUNI_Sec (5001)</span>
+            {% endif %}
+        </div>
+
+        <!-- Restricción Didáctica Explícita según Contrato de Etapa 2 -->
+        <div class="alert alert-info">
+            <strong>📌 Restricción didáctica del modelo numérico:</strong><br>
+            El monto de transferencia debe ser un <strong>entero positivo en soles entre 1 y 21,474,836</strong> (sin punto decimal, exponente, coma, signo negativo ni tipo float).
+            Este límite garantiza que al convertirse a céntimos (multiplicando por 100 en el motor C) no exceda <code>INT32_MAX = 2,147,483,647</code>.
+        </div>
+
+        <form id="form-transferencia">
+            <div class="form-group">
+                <label for="cuenta_origen_id">Cuenta de Origen (Débito)</label>
+                <input type="number" id="cuenta_origen_id" name="cuenta_origen_id" placeholder="Ej. 101 (Cuenta de Ana)" min="1" max="2147483647" required>
+                <small>Debe pertenecer al cliente autenticado. Cuentas de muestra: <code>101</code> (Ana), <code>102</code> (Bruno).</small>
+            </div>
+
+            <div class="form-group">
+                <label for="cuenta_destino_id">Cuenta de Destino (Crédito)</label>
+                <input type="number" id="cuenta_destino_id" name="cuenta_destino_id" placeholder="Ej. 102 (Cuenta de Bruno)" min="1" max="2147483647" required>
+                <small>Debe ser una cuenta existente distinta al origen. Cuentas de muestra: <code>102</code>, <code>103</code>.</small>
+            </div>
+
+            <div class="form-group">
+                <label for="monto_soles">Monto a Transferir (Soles Enteros)</label>
+                <input type="number" id="monto_soles" name="monto_soles" placeholder="Ej. 100" min="1" max="21474836" step="1" required>
+                <small>Rango permitido: 1 a 21,474,836 soles enteros. Valores &ge; 21,474,837 provocarán rechazo por desborde en el motor C.</small>
+            </div>
+
+            <div style="margin-top: 24px;">
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    💸 Ejecutar Transferencia (Probar Envío)
+                </button>
+            </div>
+        </form>
+
+        <!-- Contenedor de Estado de la Petición -->
+        <div id="status-feedback"></div>
+
+        <div class="alert alert-warning" style="margin-top: 20px; font-size: 0.82rem;">
+            <strong>Nota de seguridad de este avance:</strong> Al enviar el formulario, la solicitud se canalizará hacia <code>POST /api/transferencias</code>, respondiendo HTTP 501. En este molde no se debitan fondos, no se acreditan cuentas ni se crea ninguna transacción financiera.
+        </div>
+    </div>
+</div>
+{% endblock %}

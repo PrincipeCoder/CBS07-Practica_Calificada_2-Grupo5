@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Detalle de Transferencia{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h1 class="card-title">Detalle de Transferencia</h1>
+        <span class="badge badge-mock">Maquetación de Interfaz</span>
+    </div>
+
+    <!-- Buscador por Identificador de Transferencia -->
+    <form id="form-detalle" style="margin-bottom: 24px;">
+        <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 12px;">
+            Búsqueda por identificador directo (<code>GET /api/transferencias/{id}</code>). Contrato: entero decimal positivo hasta 2147483647 (máx. 10 dígitos).
+        </p>
+        <div style="display: flex; gap: 10px; max-width: 480px;">
+            <input type="number" id="transfer_id" name="transfer_id" placeholder="Ej. 1051, 1052 o 1053" min="1" max="2147483647" required style="flex: 1; padding: 9px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+            <button type="submit" class="btn btn-primary">
+                🔎 Buscar
+            </button>
+        </div>
+    </form>
+
+    <!-- Retroalimentación de la API -->
+    <div id="status-feedback"></div>
+
+    <!-- Etiqueta obligatoria y aviso de datos de muestra -->
+    <div class="alert alert-warning" style="margin-top: 24px;">
+        <strong>🏷️ Datos de muestra de la interfaz</strong><br>
+        La siguiente ficha contiene valores estáticos predefinidos para ilustrar cómo se presentará el detalle de una transferencia. <strong>No procede de una consulta a la base de datos ni representa un resultado del sistema.</strong>
+    </div>
+
+    <!-- Ficha de detalle estática -->
+    <div style="background-color: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+            <div>
+                <span style="font-size: 0.82rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Identificador de Operación</span>
+                <h2 style="font-size: 1.4rem; color: var(--primary-color);">Transferencia #{{ sample_data.id }}</h2>
+            </div>
+            <span class="badge badge-sec">{{ sample_data.estado }}</span>
+        </div>
+
+        <div class="form-grid" style="margin-bottom: 10px;">
+            <div>
+                <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">CUENTA ORIGEN (DÉBITO)</span>
+                <p style="font-size: 1.05rem; font-weight: 600; margin-top: 2px;">Cuenta {{ sample_data.cuenta_origen }}</p>
+                <small style="color: var(--text-muted);">Titular: {{ sample_data.titular_origen }}</small>
+            </div>
+
+            <div>
+                <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">CUENTA DESTINO (CRÉDITO)</span>
+                <p style="font-size: 1.05rem; font-weight: 600; margin-top: 2px;">Cuenta {{ sample_data.cuenta_destino }}</p>
+                <small style="color: var(--text-muted);">Titular: {{ sample_data.titular_destino }}</small>
+            </div>
+
+            <div>
+                <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">MONTO EN SOLES</span>
+                <p style="font-size: 1.15rem; font-weight: 700; color: #047857; margin-top: 2px;">S/ {{ sample_data.monto_soles }}</p>
+                <small style="color: var(--text-muted);">Equivalente: {{ sample_data.monto_centimos }} céntimos</small>
+            </div>
+
+            <div>
+                <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">FECHA Y HORA (UTC)</span>
+                <p style="font-size: 0.95rem; font-weight: 600; margin-top: 2px;">{{ sample_data.fecha_utc }}</p>
+                <small style="color: var(--text-muted);">ID Correlación: {{ sample_data.correlacion_id }}</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}FinanUNI_Sec{% endblock %} - CBS07 Seguridad de Software</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+    <!-- Banner de Advertencia Académica -->
+    <div class="top-notice">
+        🔬 <strong>Entorno Académico Controlado · CBS07 Seguridad de Software 2026-II</strong> — 
+        Avance Inicial: Molde arquitectónico y pantallas activas. Lógica de negocio pendiente.
+        <a href="{{ peer_app_url }}" target="_blank" style="margin-left: 8px;">Abrir {{ peer_app_name }} ↗</a>
+    </div>
+
+    <!-- Encabezado y Navegación Principal -->
+    <header>
+        <div class="header-container">
+            <div class="brand-area">
+                <a href="{{ url_for('web.login') }}" class="brand-title">
+                    🏛️ FinanUNI
+                </a>
+                {% if is_vulnerable %}
+                    <span class="badge badge-vuln">⚠️ VULNERABLE · PUERTO {{ app_port }}</span>
+                {% else %}
+                    <span class="badge badge-sec">🛡️ SEGURA · PUERTO {{ app_port }}</span>
+                {% endif %}
+            </div>
+
+            <nav>
+                <a href="{{ url_for('web.login') }}" class="nav-link {% if active_page == 'login' %}active{% endif %}">
+                    🔐 Login
+                </a>
+                <a href="{{ url_for('web.movimientos') }}" class="nav-link {% if active_page == 'movimientos' %}active{% endif %}">
+                    📊 Movimientos
+                </a>
+                <a href="{{ url_for('web.detalle_transferencia') }}" class="nav-link {% if active_page == 'detalle' %}active{% endif %}">
+                    🔎 Detalle
+                </a>
+                <a href="{{ url_for('web.nueva_transferencia') }}" class="nav-link {% if active_page == 'nueva_transferencia' %}active{% endif %}">
+                    💸 Transferir
+                </a>
+                <a href="{{ url_for('web.health_page') }}" class="nav-link {% if active_page == 'health' %}active{% endif %}">
+                    🩺 Estado
+                </a>
+                <a href="{{ peer_app_url }}" class="peer-switch-btn" title="Ir a la aplicación paralela">
+                    Cambiar a {{ peer_app_name }}
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Contenido Principal -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Pie de Página -->
+    <footer>
+        <p><strong>FinanUNI</strong> — Laboratorio de Seguridad de Software (CBS07) · Universidad Nacional de Ingeniería (UNI)</p>
+        <p>Grupo 5 · Etapas 1, 2 y 3 (Diseño, Arquitectura y Modelo de Amenazas) · Versión 0.1.0 (Molde Inicial)</p>
+    </footer>
+
+    <!-- Script de Control -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

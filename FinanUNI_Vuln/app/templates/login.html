@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Inicio de Sesión{% endblock %}
+
+{% block content %}
+<div style="max-width: 520px; margin: 30px auto;">
+    <div class="card">
+        <div class="card-header">
+            <h1 class="card-title">Acceso al Sistema</h1>
+            {% if is_vulnerable %}
+                <span class="badge badge-vuln">Vuln (5000)</span>
+            {% else %}
+                <span class="badge badge-sec">Sec (5001)</span>
+            {% endif %}
+        </div>
+
+        <div class="alert alert-info">
+            <strong>ℹ️ Modo Demostración Académica</strong><br>
+            Este avance inicial presenta la interfaz del sistema. No se ha implementado aún la verificación de contraseñas (Argon2id) ni sesiones de servidor. Puede probar el formulario o navegar libremente por las pantallas usando la barra superior.
+        </div>
+
+        <form id="form-login">
+            <div class="form-group">
+                <label for="username">Nombre de Acceso (Usuario)</label>
+                <input type="text" id="username" name="username" placeholder="Ej. ana, bruno o auditor" required>
+                <small>Usuarios previstos en la semilla: <code>ana</code> (cliente), <code>bruno</code> (cliente), <code>auditor</code> (auditor).</small>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Contraseña</label>
+                <input type="password" id="password" name="password" placeholder="Ingrese su contraseña ficticia" required>
+                <small>Contraseñas entre 1 y 128 caracteres. No se transmiten ni verifican en este avance.</small>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    Iniciar Sesión (Probar Envío)
+                </button>
+            </div>
+        </form>
+
+        <!-- Contenedor dinámico de retroalimentación de estado -->
+        <div id="status-feedback"></div>
+
+        <div style="margin-top: 24px; padding-top: 16px; border-top: 1px dashed var(--border-color);">
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">
+                <strong>Navegación directa de demostración (sin sesión requerida):</strong>
+            </p>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <a href="{{ url_for('web.movimientos') }}" class="btn btn-secondary" style="font-size: 0.8rem; padding: 6px 10px;">
+                    Ver Movimientos
+                </a>
+                <a href="{{ url_for('web.detalle_transferencia') }}" class="btn btn-secondary" style="font-size: 0.8rem; padding: 6px 10px;">
+                    Ver Detalle
+                </a>
+                <a href="{{ url_for('web.nueva_transferencia') }}" class="btn btn-secondary" style="font-size: 0.8rem; padding: 6px 10px;">
+                    Nueva Transferencia
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

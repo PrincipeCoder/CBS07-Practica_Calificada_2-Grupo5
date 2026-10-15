@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+
+# Flask & SQLite Database
+instance/*.db
+instance/*.sqlite
+instance/*.sqlite3
+!instance/.gitkeep
+
+# Logs
+logs/*.log
+!logs/.gitkeep
+
+# C build artifacts & executables
+motor_c/*.o
+motor_c/*.obj
+motor_c/*.exe
+motor_c/conversor_c
+motor_c/conversor_c.exe
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment variables
+.env

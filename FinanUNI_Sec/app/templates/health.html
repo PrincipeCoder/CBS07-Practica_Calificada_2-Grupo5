@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Estado de Salud del Sistema{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h1 class="card-title">Estado de Infraestructura y Salud</h1>
+        {% if is_vulnerable %}
+            <span class="badge badge-vuln">FinanUNI_Vuln (Puerto {{ app_port }})</span>
+        {% else %}
+            <span class="badge badge-sec">FinanUNI_Sec (Puerto {{ app_port }})</span>
+        {% endif %}
+    </div>
+
+    <div class="alert alert-info">
+        Este panel informa el estado operativo de los componentes de la aplicación <strong>{{ app_name }}</strong> en el avance actual (molde inicial).
+    </div>
+
+    <div class="table-responsive" style="margin-bottom: 24px;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Componente / Módulo</th>
+                    <th>Estado Actual</th>
+                    <th>Detalle / Responsabilidad</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Servidor Web Flask</strong></td>
+                    <td><span class="badge badge-sec">Activo (OK)</span></td>
+                    <td>Escuchando en <code>http://127.0.0.1:{{ app_port }}</code>. Enrutamiento y estáticos operativos.</td>
+                </tr>
+                <tr>
+                    <td><strong>Navegación e Interfaces</strong></td>
+                    <td><span class="badge badge-sec">Activo (OK)</span></td>
+                    <td>Cuatro pantallas base cargadas y navegables sin sesión forzada.</td>
+                </tr>
+                <tr>
+                    <td><strong>Endpoints de Negocio</strong></td>
+                    <td><span class="badge badge-mock">Pendiente (HTTP 501)</span></td>
+                    <td>Configurados con código HTTP 501 para prevenir ejecuciones prematuras.</td>
+                </tr>
+                <tr>
+                    <td><strong>Base de Datos SQLite</strong></td>
+                    <td><span class="badge badge-mock">Pendiente</span></td>
+                    <td>Firmas y DDL preparados. Conexión y semilla pendientes de integración.</td>
+                </tr>
+                <tr>
+                    <td><strong>Motor Numérico en C</strong></td>
+                    <td><span class="badge badge-mock">Pendiente</span></td>
+                    <td>Ubicación y contrato <code>conversor.h</code> definidos. Compilación pendiente (Integrante 2).</td>
+                </tr>
+                <tr>
+                    <td><strong>Controles de Seguridad</strong></td>
+                    <td><span class="badge badge-mock">Pendiente</span></td>
+                    <td>Argon2id, RBAC, validadores contextuales y token CSRF preparados en firmas.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div style="border-top: 1px solid var(--border-color); padding-top: 18px;">
+        <h2 style="font-size: 1.05rem; margin-bottom: 10px;">Consulta Directa al Endpoint REST de Salud</h2>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
+            Haga clic en el botón para consultar <code>GET /api/health</code> y obtener la respuesta JSON directa de la infraestructura:
+        </p>
+        <button id="btn-check-health" class="btn btn-secondary">
+            🩺 Consultar /api/health (JSON)
+        </button>
+
+        <pre id="health-json-output" style="margin-top: 14px; background-color: #1e293b; color: #38bdf8; padding: 14px; border-radius: var(--radius-sm); font-size: 0.85rem; overflow-x: auto; min-height: 48px;">
+Haga clic en el botón para verificar la respuesta JSON...
+        </pre>
+    </div>
+</div>
+{% endblock %}
